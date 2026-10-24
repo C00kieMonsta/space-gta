@@ -1,0 +1,9 @@
+client/
+licenses/
+dist/
+dev-dist/
+node_modules/
+pnpm-lock.yaml
+playwright-report/
+test-results/
+.data/

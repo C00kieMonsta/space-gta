@@ -1,0 +1,23 @@
+name: Bug report
+description: Report a reproducible game issue.
+title: "Bug: "
+labels: [bug]
+body:
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include solo or multiplayer mode and the actions that trigger the issue.
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Expected and observed behavior
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Browser, device, and game version
+      description: Screenshots or a short recording help with movement and visual issues.

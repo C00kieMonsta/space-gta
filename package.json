@@ -1,0 +1,74 @@
+{
+  "name": "@space-gta/game",
+  "version": "0.1.0",
+  "description": "A browser space game with solo flight, base building, and multiplayer Moon crews.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Antoine Boxho",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/C00kieMonsta/space-gta.git"
+  },
+  "homepage": "https://github.com/C00kieMonsta/space-gta#readme",
+  "bugs": "https://github.com/C00kieMonsta/space-gta/issues",
+  "packageManager": "pnpm@10.20.0",
+  "engines": {
+    "node": ">=22.18.0",
+    "pnpm": ">=10"
+  },
+  "exports": {
+    "./server": {
+      "types": "./dist/types/server/index.d.ts",
+      "import": "./dist/server.js",
+      "require": "./dist/server.cjs"
+    },
+    "./simulation": {
+      "types": "./dist/types/simulation.d.ts",
+      "import": "./dist/simulation.js",
+      "require": "./dist/simulation.cjs"
+    },
+    "./build": "./scripts/assets.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "client",
+    "src",
+    "scripts",
+    "dist",
+    "licenses",
+    "README.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "start": "node dist/dev.cjs",
+    "build": "node scripts/build.mjs && tsc -p tsconfig.build.json",
+    "build:client": "node scripts/assets.mjs",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint src test scripts && node --check client/game.js",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:browser": "playwright test",
+    "check": "pnpm type-check && pnpm lint && pnpm format:check && pnpm test && pnpm build"
+  },
+  "dependencies": {
+    "esbuild": "^0.25.0",
+    "ws": "^8.22.0",
+    "zod": "^4.6.6"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^22.18.0",
+    "@types/ws": "^8.18.2",
+    "eslint": "^9.0.0",
+    "globals": "^15.0.0",
+    "prettier": "^3.5.3",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^3.2.7"
+  }
+}
