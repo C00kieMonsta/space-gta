@@ -51,7 +51,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:browser": "playwright test",
+    "test:browser": "pnpm build && playwright test",
     "check": "pnpm type-check && pnpm lint && pnpm format:check && pnpm test && pnpm build"
   },
   "dependencies": {

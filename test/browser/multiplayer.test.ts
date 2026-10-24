@@ -15,7 +15,14 @@ test("two browsers share a colony and resume an identity after reload", async ({
   try {
     async function page(context: typeof one) {
       const page = await context.newPage();
-      page.on("pageerror", (error) => errors.push(error.message));
+      page.on("pageerror", (error) => {
+        errors.push(error.message);
+        console.error("Browser error:", error.message);
+      });
+      page.on("console", (message) => {
+        if (message.type() === "error")
+          console.error("Browser console:", message.text());
+      });
       // Drawing is disabled only in this network test. Client state and WebSocket code are unchanged.
       await page.route(/\/game\.[a-f0-9]{8}\.js$/, async (route) => {
         const response = await route.fetch();
@@ -45,6 +52,11 @@ test("two browsers share a colony and resume an identity after reload", async ({
         );
       });
       await page.goto("/play/SPACEGTA", { waitUntil: "domcontentloaded" });
+      await page.waitForFunction(
+        () => !!(globalThis as any).__gameTest,
+        undefined,
+        { polling: 100, timeout: 15000 }
+      );
       await expect(page.locator("#crewBtn")).toBeVisible();
       return page;
     }
@@ -56,7 +68,7 @@ test("two browsers share a colony and resume an identity after reload", async ({
     await a.waitForFunction(
       () => (globalThis as any).__gameTest?.MP.connected,
       undefined,
-      { polling: 100 }
+      { polling: 100, timeout: 15000 }
     );
     const identity = await a.evaluate(() => {
       const m = (globalThis as any).__gameTest.MP;
@@ -72,14 +84,14 @@ test("two browsers share a colony and resume an identity after reload", async ({
         Object.keys((globalThis as any).__gameTest.MP.world.players).length ===
           2,
       undefined,
-      { polling: 100 }
+      { polling: 100, timeout: 15000 }
     );
     await a.waitForFunction(
       () =>
         Object.keys((globalThis as any).__gameTest.MP.world.players).length ===
         2,
       undefined,
-      { polling: 100 }
+      { polling: 100, timeout: 15000 }
     );
     await a.evaluate(() => {
       const q = (globalThis as any).__gameTest;
@@ -103,7 +115,7 @@ test("two browsers share a colony and resume an identity after reload", async ({
     await b.waitForFunction(
       () => (globalThis as any).__gameTest.CO.mods.length === 1,
       undefined,
-      { polling: 100 }
+      { polling: 100, timeout: 15000 }
     );
     const resources = await b.evaluate(
       () => (globalThis as any).__gameTest.CO.res.mat
@@ -116,7 +128,7 @@ test("two browsers share a colony and resume an identity after reload", async ({
     await a.waitForFunction(
       () => (globalThis as any).__gameTest.MP.connected,
       undefined,
-      { polling: 100 }
+      { polling: 100, timeout: 15000 }
     );
     expect(await a.evaluate(() => (globalThis as any).__gameTest.MP.id)).toBe(
       identity.id
@@ -126,7 +138,6 @@ test("two browsers share a colony and resume an identity after reload", async ({
     ).toBe(1);
     expect(errors).toEqual([]);
   } finally {
-    await one.close();
-    await two.close();
+    await Promise.allSettled([one.close(), two.close()]);
   }
 });

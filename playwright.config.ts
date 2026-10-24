@@ -8,10 +8,20 @@ export default defineConfig({
     baseURL: "http://127.0.0.1:3100",
     headless: true,
     channel: process.env.PLAYWRIGHT_CHANNEL,
-    launchOptions: { args: ["--enable-unsafe-swiftshader"] }
+    actionTimeout: 15000,
+    navigationTimeout: 15000,
+    trace: "retain-on-failure",
+    screenshot: "only-on-failure",
+    launchOptions: {
+      args: [
+        "--use-angle=swiftshader",
+        "--enable-unsafe-swiftshader",
+        "--disable-dev-shm-usage"
+      ]
+    }
   },
   webServer: {
-    command: "pnpm dev",
+    command: "pnpm start",
     url: "http://127.0.0.1:3100/health",
     reuseExistingServer: false,
     timeout: 30000,
