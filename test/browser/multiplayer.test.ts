@@ -26,9 +26,18 @@ test("two browsers share a colony and resume an identity after reload", async ({
       // Drawing is disabled only in this network test. Client state and WebSocket code are unchanged.
       await page.route(/\/game\.[a-f0-9]{8}\.js$/, async (route) => {
         const response = await route.fetch();
+        const game = (await response.text())
+          .replace(
+            "'use strict';",
+            "'use strict';\ngfxInit = () => {}; drawFrame = () => {}; envMap = () => null;"
+          )
+          .replace(
+            "const pmrem = new THREE.PMREMGenerator(renderer);",
+            "const pmrem = null;"
+          );
         const body =
           "THREE.WebGLRenderer.prototype.render=function(){};\n" +
-          (await response.text()).replace(
+          game.replace(
             "/* ================= loop ================= */",
             "globalThis.__gameTest={MP,PL,SU,mpCommand,get CO(){return CO}};\n/* ================= loop ================= */"
           );
