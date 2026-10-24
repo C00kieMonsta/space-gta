@@ -18,14 +18,24 @@
   },
   "exports": {
     "./server": {
-      "types": "./dist/types/server/index.d.ts",
-      "import": "./dist/server.js",
-      "require": "./dist/server.cjs"
+      "import": {
+        "types": "./dist/types/server/index.d.ts",
+        "default": "./dist/server.js"
+      },
+      "require": {
+        "types": "./dist/types-cjs/server/index.d.ts",
+        "default": "./dist/server.cjs"
+      }
     },
     "./simulation": {
-      "types": "./dist/types/simulation.d.ts",
-      "import": "./dist/simulation.js",
-      "require": "./dist/simulation.cjs"
+      "import": {
+        "types": "./dist/types/simulation.d.ts",
+        "default": "./dist/simulation.js"
+      },
+      "require": {
+        "types": "./dist/types-cjs/simulation.d.ts",
+        "default": "./dist/simulation.cjs"
+      }
     },
     "./build": "./scripts/assets.mjs",
     "./package.json": "./package.json"
@@ -43,7 +53,7 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "start": "node dist/dev.cjs",
-    "build": "node scripts/build.mjs && tsc -p tsconfig.build.json",
+    "build": "node scripts/build.mjs && tsc -p tsconfig.build.json && node scripts/declarations.mjs && pnpm check:package",
     "build:client": "node scripts/assets.mjs",
     "type-check": "tsc --noEmit",
     "lint": "eslint src test scripts && node --check client/game.js",
@@ -52,7 +62,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:browser": "pnpm build && playwright test",
-    "check": "pnpm type-check && pnpm lint && pnpm format:check && pnpm test && pnpm build"
+    "check": "pnpm type-check && pnpm lint && pnpm format:check && pnpm test && pnpm build",
+    "check:package": "tsc -p tsconfig.consumer.json && node scripts/check-package.mjs"
   },
   "dependencies": {
     "esbuild": "^0.25.0",
