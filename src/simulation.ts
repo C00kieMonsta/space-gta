@@ -1,8 +1,10 @@
 import { ground, mulberry, rocks } from "./terrain.js";
 
 export { ground } from "./terrain.js";
-export const PROTOCOL = 2;
+export const PROTOCOL = 3;
 export const STEP = 1 / 20;
+export const WALK_SPEED = 5.2;
+export const SPRINT_MULTIPLIER = 1.8;
 export const MODULES: Record<
   string,
   { mat: number; water: number; r: number; power: number }
@@ -265,10 +267,10 @@ export function movePlayer(
     f /= m;
     r /= m;
   }
-  const speed = 3.2 * (input.run ? 1.8 : 1),
+  const speed = WALK_SPEED * (input.run ? SPRINT_MULTIPLIER : 1),
     fx = -Math.sin(p.yaw),
     fz = -Math.cos(p.yaw),
-    k = Math.min(1, (p.onGround ? 9 : 1.2) * dt);
+    k = 1 - Math.exp(-(p.onGround ? 14 : 2.4) * dt);
   p.vx += ((fx * f - fz * r) * speed - p.vx) * k;
   p.vz += ((fz * f + fx * r) * speed - p.vz) * k;
   p.vy -= 1.62 * dt;

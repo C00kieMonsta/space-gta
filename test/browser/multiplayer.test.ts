@@ -102,6 +102,31 @@ test("two browsers share a colony and resume an identity after reload", async ({
       undefined,
       { polling: 100, timeout: 15000 }
     );
+    await expect(a.locator("#crewRoster li")).toHaveCount(2);
+    await expect(b.locator("#crewRoster li")).toHaveCount(2);
+    await expect(a.locator("#crewLatency")).toHaveText(/\d+ ms/);
+    const start = await a.evaluate(() => ({
+      ...(globalThis as any).__gameTest.PL
+    }));
+    await a.keyboard.down("Shift");
+    await a.keyboard.down("w");
+    await a.waitForFunction(() => {
+      const p = (globalThis as any).__gameTest.MP.pred;
+      return Math.hypot(p.vx, p.vz) > 8;
+    });
+    await a.waitForFunction((origin) => {
+      const p = (globalThis as any).__gameTest.PL;
+      return Math.hypot(p.x - origin.x, p.z - origin.z) > 2;
+    }, start);
+    await a.keyboard.up("w");
+    await a.keyboard.up("Shift");
+    const moved = await a.evaluate(() => ({
+      ...(globalThis as any).__gameTest.PL
+    }));
+    expect(Math.hypot(moved.x - start.x, moved.z - start.z)).toBeGreaterThan(1);
+    await b.locator("#tRun").click();
+    await expect(b.locator("#tRun")).toHaveAttribute("aria-pressed", "true");
+    await b.locator("#tRun").click();
     await a.evaluate(() => {
       const q = (globalThis as any).__gameTest;
       for (let x = -25; x < 25; x += 2)
@@ -130,6 +155,14 @@ test("two browsers share a colony and resume an identity after reload", async ({
       () => (globalThis as any).__gameTest.CO.res.mat
     );
     expect(resources).toBe(130);
+    await a.evaluate(() =>
+      (globalThis as any).__gameTest.MP.ws.close(4008, "Test reconnect")
+    );
+    await expect(a.locator("#crewLatency")).toHaveText("Offline");
+    await a.waitForFunction(() => (globalThis as any).__gameTest.MP.connected);
+    expect(await a.evaluate(() => (globalThis as any).__gameTest.MP.id)).toBe(
+      identity.id
+    );
     await a.reload({ waitUntil: "domcontentloaded" });
     await a.locator("#crewBtn").click();
     await a.locator("#crewRoom").fill(identity.room);

@@ -46,13 +46,19 @@ server is stopped to reset local rooms.
 | ------------- | ------------------------------------- |
 | WASD / arrows | Walk or steer                         |
 | Mouse         | Look, after clicking the surface view |
-| Shift / Space | Run / jump                            |
+| Shift / Space | Sprint / jump                         |
 | Click / E     | Shoot / use                           |
 | B / C         | Build / workshop                      |
 | 1-4 / Escape  | Select weapon / release the mouse     |
 
-Touch controls appear on mobile devices. The game also shows controls for each
-flight phase.
+Touch controls appear on mobile devices, including a sprint toggle. Walking speed
+is 5.2 m/s on the Moon. Sprinting reaches 9.36 m/s in solo and multiplayer.
+The surface HUD includes a compass, speed readout, and desktop radar for nearby
+crew, deposits, buildings, and the lander. The crew panel shows health, distance,
+and connection latency. The game also shows controls for each flight phase.
+
+Sound includes suit breathing, terrain and habitat footsteps, layered engine
+rumble, and positional crew weapon effects. Adjust volume or mute sound in Settings.
 
 ## Contribute
 

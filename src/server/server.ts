@@ -7,7 +7,6 @@ import {
 import { WebSocket, WebSocketServer } from "ws";
 import { TokenBuckets } from "./throttle.js";
 import { RoomError, Rooms, type Peer, type Room } from "./rooms.js";
-import type { GameEvent } from "../simulation.js";
 
 export type ServerOptions = {
   /** Handle game files or host routes that are outside the room protocol. */
@@ -241,18 +240,11 @@ export function createMultiplayerServer(
       });
     });
   });
-  let frame = 0;
-  const pending = new Map<Room, GameEvent[]>();
   const loop = setInterval(() => {
-    frame++;
     for (const room of rooms.rooms.values()) {
-      const events = pending.get(room) || [];
-      events.push(...room.tick());
-      if (frame % 2 === 0) {
-        if (room.peers.size)
-          room.broadcast({ type: "snapshot", world: room.snapshot(), events });
-        pending.delete(room);
-      } else pending.set(room, events);
+      const events = room.tick();
+      if (room.peers.size)
+        room.broadcast({ type: "snapshot", world: room.snapshot(), events });
     }
   }, 50);
   const maintenance = setInterval(() => {

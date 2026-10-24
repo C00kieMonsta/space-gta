@@ -28,6 +28,7 @@ export const JoinSchema = z
   })
   .strict();
 export const MessageSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("ping"), clientTime: finite.min(0) }).strict(),
   z
     .object({
       type: z.literal("input"),
@@ -270,6 +271,10 @@ export class Room {
     const m = parsed.data,
       p = this.record.world.players[id];
     if (!p || !peer || this.peers.get(id) !== peer) return;
+    if (m.type === "ping") {
+      peer.send({ type: "pong", clientTime: m.clientTime });
+      return;
+    }
     if (m.type === "input") {
       if (m.seq <= (this.inputs.get(id)?.seq || 0)) return;
       const queued = this.queued.get(id)!;

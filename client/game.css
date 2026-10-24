@@ -374,3 +374,130 @@ html,body{margin:0}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom
 @media(pointer:coarse), (max-width:600px) { .crew-status { top:205px; bottom:auto; max-width:230px; } .crew-status .btn { padding:6px 9px; font-size:11px; } }
 
 @media(max-height:500px) and (pointer:coarse) { .crew-status { top:8px; left:42%; right:auto; max-width:250px; } }
+
+/* Expedition interface */
+:root{--panel:rgba(9,17,26,.82);--panel-strong:rgba(9,17,26,.97);--line:rgba(153,190,205,.19);--muted:#a0b0c0;--cyan:#83e4e2;--amber:#ffbe63}
+*{box-sizing:border-box}
+.panel{border-radius:10px;box-shadow:0 12px 40px #0002,inset 0 1px 0 #ffffff05;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.btn,.rk,.dest button,.primary{border-radius:6px;transition:background .15s,border-color .15s,box-shadow .15s}
+.btn:hover:not(:disabled),.rk:hover,.dest button:hover:not(:disabled){background-color:#83e4e210;border-color:var(--cyan)}
+.primary:hover:not(:disabled){background:#ffd18d;box-shadow:0 4px 22px #ffbe6325}
+.btn:active,.primary:active{filter:brightness(.9)}
+#hangarUI{padding:24px 32px;grid-template-rows:48px minmax(0,1fr);column-gap:40px;row-gap:24px;background:linear-gradient(90deg,#050b1270,transparent 55%)}
+.hangar-header{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:24px;pointer-events:auto;border-bottom:1px solid var(--line);padding-bottom:18px}
+.game-brand{font:800 24px/1 var(--display);letter-spacing:.12em;display:flex;align-items:center;gap:5px;color:var(--fg);text-decoration:none}
+.game-brand>span:last-child{color:var(--amber)}
+.brand-mark{display:grid;place-items:center;width:32px;height:32px;margin-right:8px;border:1px solid var(--amber);border-radius:50%;color:var(--amber);font-size:25px}
+.hangar-status{font:9px/1.3 var(--mono);letter-spacing:.08em;color:var(--muted);display:flex;align-items:center;gap:12px}
+.hangar-status i{width:5px;height:5px;background:var(--green);border-radius:50%;box-shadow:0 0 8px #7fe3a460}
+.hangar-status>span{color:#ffffff30}
+.hpanel{grid-column:1;grid-row:2;gap:10px;padding:18px;background:linear-gradient(145deg,#111e29e8,#080f19ed);border-top:2px solid #83e4e266;scrollbar-width:thin;scrollbar-color:#83e4e240 transparent}
+.hpanel h1{font-size:48px;letter-spacing:.01em;line-height:.9;margin:4px 0 0}
+.hpanel h1>span{color:var(--amber)}
+.hangar-intro{font-size:14px;color:var(--muted);margin:0;letter-spacing:.02em}
+.eyebrow{font-size:9px;line-height:1.5;letter-spacing:.1em}
+.section-label{display:flex;justify-content:space-between;align-items:center}
+.section-label .k:last-child{font-family:var(--mono);font-size:9px;color:#6c7d8d}
+.rk{position:relative;padding:9px 12px;background:#ffffff03}
+.rk[aria-checked="true"]{background:linear-gradient(120deg,#ffbe631a,#ffbe6305);box-shadow:inset 3px 0 var(--amber)}
+.rk[aria-checked="true"]::after{content:"●";position:absolute;right:10px;top:10px;font-size:8px;color:var(--amber)}
+.rk b{font-size:20px}
+.rk-blurb{font-size:14px;color:#b5c4d0}
+.rk-stats dd{font-size:13px;color:#e5f1f5}
+.dest button{padding:9px 4px}
+.dest button[aria-checked="true"]{border-color:var(--cyan);background:#83e4e210;color:var(--cyan)}
+.crew-launch{display:flex;justify-content:space-between;border-color:#83e4e244;background:#83e4e20a;padding:15px 12px;color:var(--cyan);font-size:14px}
+.crew-launch>span{font:8px/1 var(--mono);color:var(--muted);letter-spacing:0}
+.ship-caption{position:absolute;right:48px;bottom:84px;display:grid;gap:7px;text-align:right;pointer-events:none;text-shadow:0 2px 20px #000}
+.ship-caption>strong{font:800 clamp(44px,6vw,88px)/.9 var(--display);letter-spacing:.08em;text-transform:uppercase}
+.ship-caption-sub{color:var(--muted);font-size:14px;letter-spacing:.05em}
+.drag-hint{font-family:var(--mono);font-size:8px;letter-spacing:.08em;opacity:.65}
+.navigation-hud{position:absolute;top:16px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:14px;padding:12px 18px;pointer-events:none;border-radius:30px;font-size:11px}
+.nav-indicator{width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:9px solid var(--amber)}
+.nav-divider{height:14px;width:1px;background:var(--line)}
+#navMotion{font-size:9px;min-width:48px;color:var(--cyan)}
+.colony{border-top:2px solid #83e4e266;padding:14px;width:284px;gap:12px}
+.colony .head{padding-bottom:8px;border-bottom:1px solid var(--line)}
+.colony .cgrid{gap:8px 16px}
+.colony .suitbars{padding-top:10px;border-top:1px solid var(--line)}
+.bar{border-radius:4px;overflow:hidden;background:#ffffff0d}
+.bar i{border-radius:4px}
+.sright .objectives{background:rgba(9,17,26,.66);font-size:12px}
+.objectives li{padding:3px 0}
+.objectives li.next{color:var(--amber)}
+.wpn{border-left:2px solid var(--amber)}
+.cross{width:20px;height:20px;margin:-10px;border:1px solid #ffffff28;border-radius:50%}
+.cross::before{height:3px;width:3px;left:8px;top:8px;border-radius:50%;background:#eafaff}
+.cross::after{display:none}
+.cross.hot{border-color:var(--amber)}
+.lock-hint{max-width:620px;font-size:20px;padding:18px 24px;background:rgba(9,17,26,.75)}
+.lock-hint .k{display:block;font-size:10px;line-height:1.8;white-space:normal;margin-top:10px;letter-spacing:.08em}
+.surface-map{position:absolute;bottom:148px;left:16px;width:178px;padding:12px;pointer-events:none}
+.map-title{display:flex;justify-content:space-between;align-items:center}
+.map-title .k{font-size:9px}
+#mapRange{font-size:8px;color:var(--muted)}
+#radar{display:block;width:100%;height:auto;margin:6px 0}
+.map-legend{display:flex;justify-content:space-between;font-size:10px;color:var(--muted)}
+.map-legend span:first-child{color:var(--amber)}
+.map-legend span:nth-child(2){color:var(--cyan)}
+.crew-panel{box-shadow:0 0 0 100vmax #02070dbb,0 24px 100px #0008;border-top:2px solid var(--cyan);background:var(--panel-strong);padding:28px}
+.crew-panel h2{font-size:36px;line-height:1;margin:14px 0}
+.crew-panel input:focus{outline:1px solid var(--cyan);border-color:var(--cyan)}
+.crew-status{right:16px;bottom:180px;width:252px;padding:14px;gap:10px;background:var(--panel)}
+.crew-heading{display:flex;align-items:center;justify-content:space-between;width:100%;gap:8px}
+.crew-heading .k{width:auto;letter-spacing:.1em;font-size:10px}
+#crewCount{font:9px/1 var(--mono);margin-left:8px;color:var(--fg)}
+#crewLatency{width:auto;font-size:9px;color:var(--green);white-space:nowrap}
+#crewLatency[data-tone="warn"]{color:var(--amber)}
+#crewState{font:8px/1.5 var(--mono);color:var(--muted);overflow-wrap:anywhere}
+#crewRoster{list-style:none;margin:0;padding:10px 0;border-block:1px solid var(--line);display:grid;gap:10px;width:100%}
+.crew-member{display:grid;grid-template-columns:8px minmax(0,1fr) auto;align-items:center;gap:8px;font-size:13px}
+.crew-member .crew-dot{width:6px;height:6px;border-radius:50%;background:var(--cyan)}
+.crew-member .crew-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.crew-member .crew-detail{width:auto;color:var(--muted);font:8px/1 var(--mono)}
+.crew-member[data-low="true"] .crew-dot{background:var(--red)}
+.crew-status>.btn{flex:1;padding:9px 8px;font-size:11px;letter-spacing:.05em}
+.tbtn[aria-pressed="true"]{color:var(--amber);border-color:var(--amber);background:#ffbe6320}
+@media(min-width:721px) and (max-height:850px){.ship-caption{bottom:40px}.surface-map{width:144px;bottom:120px}.crew-status{bottom:136px}}
+@media(max-width:1000px) and (min-width:721px){.hangar-status{display:none}.navigation-hud{left:315px;transform:none;gap:8px;padding:10px}.navigation-hud #navMotion{display:none}.ship-caption{right:24px}}
+@media(max-width:720px){
+  #hangarUI{padding:12px;grid-template-rows:44px minmax(0,1fr) auto;gap:10px}
+  .hangar-header{grid-row:1;padding-bottom:10px;gap:10px}
+  .game-brand{font-size:21px}.brand-mark{width:25px;height:25px;font-size:20px}
+  .hangar-status,.ship-caption{display:none}
+  .hpanel{grid-row:3;padding:16px;gap:10px;max-height:59svh;width:100%}
+  .hpanel h1{font-size:36px}.hpanel h1 br{display:none}.hpanel h1>span::before{content:" "}
+  .hangar-intro{font-size:13px;margin:0}.section-label{display:none}
+  .rk{min-width:118px;padding:10px}.rk b{font-size:20px}
+  .rk-stats dd{font-size:10px}.rk-stats dt{font-size:9px;letter-spacing:.05em}
+  .dest button{font-size:13px;padding:9px 3px}
+  .drag-hint{grid-row:2;font-size:8px}
+  .crew-launch{padding:13px;font-size:13px}
+  .surface-map{display:none}
+  .colony{padding:10px;width:auto;gap:6px}
+  .colony .head{padding-bottom:5px}.colony .cgrid{gap:4px 8px}.colony .suitbars{padding-top:5px}
+  .navigation-hud{top:181px;left:16px;transform:none;padding:9px 12px;gap:8px;font-size:9px;border-radius:6px}
+  .navigation-hud #navMotion{display:none}
+  .crew-status{top:230px;bottom:auto;right:16px;width:188px;max-width:calc(100vw - 32px);padding:10px;gap:8px}
+  .crew-heading .k{font-size:9px}#crewCount{margin-left:4px;font-size:8px}#crewLatency{font-size:8px}
+  .crew-member{font-size:12px;gap:6px}.crew-member .crew-detail{font-size:7px}#crewRoster{gap:7px;padding:8px 0}
+  .scenter{margin-bottom:260px}.tbtn{width:54px;height:54px;font-size:10px}.tbtn.big{width:64px;height:64px}
+  .lock-hint{width:calc(100% - 40px);padding:12px;font-size:18px}.lock-hint .k{font-size:9px}
+}
+@media(max-height:500px) and (pointer:coarse){.crew-status{top:64px;bottom:auto;left:auto;right:12px;width:180px}.navigation-hud{top:12px;left:50%;transform:translateX(-50%)}.colony{max-width:280px}.scenter{margin-bottom:0}}
+@media(prefers-reduced-motion:reduce){.btn,.rk,.dest button,.primary{transition:none}}
+.audio-volume{display:flex;align-items:center;gap:12px;padding:10px 4px;grid-column:1/-1}
+.audio-volume input{flex:1;min-width:0;accent-color:var(--cyan)}
+.audio-volume output{font:10px/1 var(--mono);min-width:36px;text-align:right;color:var(--muted)}
+@media(min-width:721px) and (max-height:900px){
+  #hangarUI{row-gap:18px;padding:18px 24px;grid-template-rows:42px minmax(0,1fr)}
+  .hpanel{gap:8px;padding:16px}.hpanel h1{font-size:42px}.rk-list{gap:6px}.rk{padding:8px 10px}
+  .rk-blurb{font-size:13px}.rk-stats{gap:8px}.dest-note{font-size:12px;line-height:1.3}
+}
+.hangar-header>.crew-launch{font-size:13px;padding:11px 14px;gap:18px}
+.hangar-header .hangar-status{margin-inline:auto}
+@media(max-width:720px){
+  .hangar-header{gap:8px}.hangar-header>.crew-launch{margin-left:auto;font-size:11px;padding:10px 8px;letter-spacing:.03em}
+  .hangar-header>.crew-launch>span{display:none}.hangar-header>.menu-btn{font-size:10px;padding:10px 8px}
+}
+@media(max-width:380px){.hangar-header .game-brand{font-size:18px}.hangar-header .brand-mark{display:none}.hangar-header>.crew-launch{font-size:10px;padding-inline:6px}}

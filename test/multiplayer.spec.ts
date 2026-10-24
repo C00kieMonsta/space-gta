@@ -19,8 +19,10 @@ import {
   movePlayer,
   placementError,
   PROTOCOL,
+  SPRINT_MULTIPLIER,
   STEP,
-  stepWorld
+  stepWorld,
+  WALK_SPEED
 } from "../src/simulation.js";
 
 class MemoryStore implements RoomStore {
@@ -119,7 +121,22 @@ describe("shared simulation", () => {
     }
     expect(p.x).toBeCloseTo(predicted.x, 8);
     expect(p.z).toBeCloseTo(predicted.z, 8);
-    expect(Math.hypot(p.x + 3, p.z - 9)).toBeLessThan(6);
+    expect(Math.hypot(p.x + 3, p.z - 9)).toBeLessThan(
+      WALK_SPEED * SPRINT_MULTIPLIER
+    );
+    expect(Math.hypot(p.vx, p.vz)).toBeCloseTo(
+      WALK_SPEED * SPRINT_MULTIPLIER,
+      3
+    );
+  });
+  it("accelerates to walking speed and stops without diagonal speed boosts", () => {
+    const w = createWorld(),
+      p = createPlayer("p", "Ada", 0),
+      input = { ...idleInput(), forward: -1, right: 1 };
+    for (let i = 0; i < 20; i++) movePlayer(w, p, input, STEP);
+    expect(Math.hypot(p.vx, p.vz)).toBeCloseTo(WALK_SPEED, 3);
+    for (let i = 0; i < 8; i++) movePlayer(w, p, idleInput(), STEP);
+    expect(Math.hypot(p.vx, p.vz)).toBeLessThan(0.03);
   });
   it("blocks building on active crew and releases the space when they disconnect", () => {
     const w = createWorld(),
@@ -223,6 +240,23 @@ describe("shared simulation", () => {
 });
 
 describe("room lifecycle and durable actions", () => {
+  it("echoes latency probes without changing the saved world", async () => {
+    const { rooms } = setup(),
+      a = await join(rooms),
+      connection = peer(),
+      { room } = await rooms.authenticate("ABCDEFGH", a.ticket, connection.p),
+      before = structuredClone(room.record);
+    await room.message(a.playerId, { type: "ping", clientTime: 1234.5 });
+    expect(connection.messages.at(-1)).toEqual({
+      type: "pong",
+      clientTime: 1234.5
+    });
+    expect(room.record).toEqual(before);
+    for (const clientTime of [-1, Infinity, NaN])
+      expect(
+        MessageSchema.safeParse({ type: "ping", clientTime }).success
+      ).toBe(false);
+  });
   it("reconciles batched movement without skipping or repeating a physics step", async () => {
     const { rooms } = setup(),
       a = await join(rooms),

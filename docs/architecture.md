@@ -6,12 +6,16 @@ separate. `src/simulation.ts` is bundled into both the browser's `KarmanSim`
 global and the server package. Terrain uses the same 400-segment ground sampling
 and 450 deterministic rock colliders on every device.
 
-The server runs at 20 Hz and emits snapshots at 10 Hz. Every input sequence
+The server runs at 20 Hz and emits snapshots at 20 Hz. Every input sequence
 represents one fixed movement step. Per-player queues preserve packet order, use
 bounded unused movement credit to catch up after batching, and reconnect if a
 queue fills. The client removes acknowledged inputs, replays the rest, and
 renders a fractional step between updates. Its input clock is independent of
 the render frame rate. Small corrections are smoothed. Large corrections snap.
+Remote astronauts and aliens use a 100 ms snapshot buffer. Brief gaps extrapolate
+astronaut movement for at most 100 ms. Respawns snap at their snapshot boundary.
+Latency probes measure round-trip time without touching saved state. Protocol 3
+includes the faster movement constants and probes. Older clients must refresh.
 
 `Rooms` receives a `RoomStore` and an asynchronous access-code authorization
 function. A successful join returns a short-lived, one-use WebSocket ticket and
@@ -31,6 +35,6 @@ and unload after one minute.
 replacement. Hosts can supply another store. One process must own a room;
 multiple instances require a room-ownership scheme before horizontal scaling.
 
-The browser, asset slug, solo save keys, world v1, and existing protocol remain
-compatible with the original Kármán Line host. The public repo contains no host
-account system, player session reporting, or cloud deployment credentials.
+The asset slug, solo save keys, and world v1 remain compatible with existing saves.
+The public repo contains no host account system, player session reporting, or
+cloud deployment credentials.
