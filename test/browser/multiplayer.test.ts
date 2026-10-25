@@ -105,6 +105,10 @@ test("two browsers share a colony and resume an identity after reload", async ({
     await expect(a.locator("#crewRoster li")).toHaveCount(2);
     await expect(b.locator("#crewRoster li")).toHaveCount(2);
     await expect(a.locator("#crewLatency")).toHaveText(/\d+ ms/);
+    await a.locator("#surfaceUI .menu-btn").click();
+    await expect(a.locator("#mAimAssist")).toHaveText("Aim assist: On");
+    await a.locator("#mAimAssist").click();
+    await a.keyboard.press("Escape");
     const start = await a.evaluate(() => ({
       ...(globalThis as any).__gameTest.PL
     }));
@@ -178,6 +182,8 @@ test("two browsers share a colony and resume an identity after reload", async ({
     expect(
       await a.evaluate(() => (globalThis as any).__gameTest.CO.mods.length)
     ).toBe(1);
+    await a.locator("#surfaceUI .menu-btn").click();
+    await expect(a.locator("#mAimAssist")).toHaveText("Aim assist: Off");
     expect(errors).toEqual([]);
   } finally {
     await Promise.allSettled([one.close(), two.close()]);

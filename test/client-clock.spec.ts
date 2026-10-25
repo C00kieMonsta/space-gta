@@ -51,6 +51,7 @@ describe("browser input clock", () => {
         "SU",
         "VM",
         "clamp",
+        "aimAssistOn",
         movement + ";return mpMove;"
       )(
         MP,
@@ -62,7 +63,8 @@ describe("browser input clock", () => {
         { firing: false },
         { build: false, objs: [] },
         { cur: "pistol" },
-        (v: number, a: number, b: number) => Math.min(b, Math.max(a, v))
+        (v: number, a: number, b: number) => Math.min(b, Math.max(a, v)),
+        () => true
       );
       for (let frame = 0; frame < fps * 10; frame++) {
         now += 1000 / fps;

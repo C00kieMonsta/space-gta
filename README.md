@@ -52,6 +52,11 @@ Solo play pauses while the guide is open. Reopen it with **H** or **Guide**.
 The surface HUD shows the next colony objective. **Goals** opens the full
 checklist, and **More** expands colony resources on small screens.
 
+Aim assist is on by default for solo and multiplayer combat, including existing
+saves. Shots correct toward enemies near the crosshair, within weapon range and
+with clear line of sight. Turn it off in **Settings → Aim assist** for manual aim.
+This preference is saved separately from flight assist.
+
 | Control       | Action                                |
 | ------------- | ------------------------------------- |
 | WASD / arrows | Walk or steer                         |

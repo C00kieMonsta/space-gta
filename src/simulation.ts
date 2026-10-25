@@ -1,7 +1,7 @@
 import { ground, mulberry, rocks } from "./terrain.js";
 
 export { ground } from "./terrain.js";
-export const PROTOCOL = 3;
+export const PROTOCOL = 4;
 export const STEP = 1 / 20;
 export const WALK_SPEED = 5.2;
 export const SPRINT_MULTIPLIER = 1.8;
@@ -75,6 +75,7 @@ export type Input = {
   run: boolean;
   jump: boolean;
   fire: boolean;
+  aimAssist?: boolean;
   weapon: string;
 };
 export const idleInput = (): Input => ({
@@ -86,6 +87,7 @@ export const idleInput = (): Input => ({
   run: false,
   jump: false,
   fire: false,
+  aimAssist: true,
   weapon: "pistol"
 });
 export type Player = {
@@ -453,6 +455,76 @@ export function raySphere(
     far = -b + Math.sqrt(q);
   return near >= 0 ? near : far >= 0 ? far : null;
 }
+export type AimTarget = {
+  x: number;
+  y: number;
+  z: number;
+  r: number;
+  hp?: number;
+  dead?: boolean;
+};
+
+// Assist shots within 12 degrees of the target's edge. Direct hits take priority.
+// Both firing paths supply their own collision checks and keep the camera unchanged.
+export function assistAimDirection(
+  origin: number[],
+  direction: number[],
+  targets: AimTarget[],
+  range: number,
+  visible: (direction: number[], distance: number) => boolean
+): number[] {
+  let result = direction,
+    bestAngle = Math.PI / 15,
+    bestDistance = Infinity;
+  for (const target of targets) {
+    if (target.dead || (target.hp ?? 1) <= 0) continue;
+    const delta = [
+        target.x - origin[0],
+        target.y - origin[1],
+        target.z - origin[2]
+      ],
+      distance = Math.hypot(...delta);
+    if (distance < 0.0001 || distance - target.r > range) continue;
+    const aim = delta.map((value) => value / distance),
+      dot = aim.reduce((sum, value, i) => sum + value * direction[i], 0);
+    if (dot <= 0) continue;
+    const angle = Math.max(
+      0,
+      Math.acos(clamp(dot, -1, 1)) - Math.asin(Math.min(1, target.r / distance))
+    );
+    if (angle > bestAngle || (angle === bestAngle && distance >= bestDistance))
+      continue;
+    if (!visible(aim, Math.max(0, distance - target.r))) continue;
+    result = aim;
+    bestAngle = angle;
+    bestDistance = distance;
+  }
+  return result;
+}
+
+export function shotDirection(
+  w: World,
+  p: Pick<Player, "x" | "y" | "z" | "yaw" | "pitch">,
+  weapon: string,
+  aimAssist = true
+): number[] {
+  const cp = Math.cos(p.pitch),
+    origin = [p.x, p.y + 1.65, p.z],
+    direction = [
+      -Math.sin(p.yaw) * cp,
+      Math.sin(p.pitch),
+      -Math.cos(p.yaw) * cp
+    ];
+  if (!aimAssist || !WEAPONS[weapon]) return direction;
+  return assistAimDirection(
+    origin,
+    direction,
+    w.aliens,
+    WEAPONS[weapon].range,
+    (aim, distance) => blocked(w, origin, aim, distance) >= distance
+  );
+}
+
 function blocked(w: World, o: number[], d: number[], max: number): number {
   let best = max;
   for (const c of [
@@ -483,9 +555,8 @@ function shot(w: World, p: Player, input: Input, events: GameEvent[]) {
   p.cool = 1 / gun.rate;
   p.heat += gun.heat;
   if (p.heat >= 1) p.over = true;
-  const cp = Math.cos(p.pitch),
-    o = [p.x, p.y + 1.65, p.z],
-    d = [-Math.sin(p.yaw) * cp, Math.sin(p.pitch), -Math.cos(p.yaw) * cp];
+  const o = [p.x, p.y + 1.65, p.z],
+    d = shotDirection(w, p, input.weapon, input.aimAssist !== false);
   let best = blocked(w, o, d, gun.range),
     hit: Alien | undefined;
   for (const a of w.aliens) {

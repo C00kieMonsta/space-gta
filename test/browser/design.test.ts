@@ -20,7 +20,7 @@ async function openGame(page: Page) {
       )
       .replace(
         "/* ================= loop ================= */",
-        "globalThis.__designTest={LS,DS,PL,get mode(){return GAME.mode}};\n/* ================= loop ================= */"
+        "globalThis.__designTest={LS,DS,PL,CB,VM,camera,fireWeapon,spawnAlien,get mode(){return GAME.mode}};\n/* ================= loop ================= */"
       );
     await route.fulfill({ response, body: source });
   });
@@ -150,6 +150,61 @@ test("touch departure actions remain reachable and landing instructions match to
   } finally {
     await context.close();
   }
+});
+
+test("aim assist helps solo shots by default and saves the opt-out for existing saves", async ({
+  page
+}) => {
+  await page.addInitScript(() => {
+    if (!localStorage.getItem("karman-save-v2"))
+      localStorage.setItem(
+        "karman-save-v2",
+        JSON.stringify({
+          v: 2,
+          profile: { weapons: ["hands", "pistol"], wpn: "pistol" },
+          colonies: {},
+          settings: { guides: { surface: true } },
+          resume: { body: "moon", x: 0, z: 12, yaw: 0, lx: 0, lz: 0 }
+        })
+      );
+  });
+  const errors = await openGame(page);
+  await page.locator("#contBtn").click();
+  await expect(page.locator("#surfaceUI")).toBeVisible();
+  async function shootNearTarget() {
+    return page.evaluate(() => {
+      const q = (globalThis as any).__designTest;
+      q.CB.aliens.forEach((alien: any) => {
+        alien.dead = true;
+      });
+      const alien = q.spawnAlien("drone", 3, -20, 40);
+      q.camera.position.set(0, 40, 9);
+      q.PL.yaw = q.PL.pitch = 0;
+      q.CB.cool = q.CB.heat = 0;
+      q.CB.over = false;
+      q.VM.draw = 1;
+      q.VM.cur = "pistol";
+      q.fireWeapon();
+      return { hp: alien.hp, yaw: q.PL.yaw, pitch: q.PL.pitch };
+    });
+  }
+  expect(await shootNearTarget()).toEqual({ hp: 12, yaw: 0, pitch: 0 });
+  await page.locator("#surfaceUI .menu-btn").click();
+  await expect(page.locator("#mAimAssist")).toHaveAttribute(
+    "aria-pressed",
+    "true"
+  );
+  await page.locator("#mAimAssist").click();
+  await expect(page.locator("#mAimAssist")).toHaveText("Aim assist: Off");
+  await page.keyboard.press("Escape");
+  expect(await shootNearTarget()).toEqual({ hp: 30, yaw: 0, pitch: 0 });
+  await page.reload();
+  await page.locator("#hangarUI .menu-btn").click();
+  await expect(page.locator("#mAimAssist")).toHaveAttribute(
+    "aria-pressed",
+    "false"
+  );
+  expect(errors).toEqual([]);
 });
 
 test("surface goals, building, resource details and dialog keyboard controls work", async ({

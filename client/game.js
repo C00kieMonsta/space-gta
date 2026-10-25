@@ -2380,13 +2380,24 @@ function coverHit(o, d, maxT) {
   }
   return best;
 }
+function aimAssistOn() { return SAVE.settings.aimAssist !== false; }
+function assistedShotDirection(o, d, w) {
+  if (!aimAssistOn()) return d;
+  if (MP.active) return d.fromArray(KarmanSim.shotDirection(MP.world, PL, w.id, true));
+  const targets = RAID.ship ? [...CB.aliens, { ...RAID.ship, r: 21 }] : CB.aliens;
+  return d.fromArray(KarmanSim.assistAimDirection(o.toArray(), d.toArray(), targets, w.range, (aim, distance) => {
+    const direction = V3(...aim);
+    return rayGroundFar(o, direction, distance) === null && coverHit(o, direction, distance) === null;
+  }));
+}
 function fireWeapon() {
   if (MP.active && (!MP.connected || MP.paused)) return;
   const w = WEAPONS[VM.cur]; if (!w.dmg || CB.over || CB.cool > 0 || VM.draw < 0.6) return;
   CB.cool = 1 / w.rate; CB.heat += w.heat; if (CB.heat >= 1) { CB.heat = 1; CB.over = true; toast('Weapon overheated. Let it cool.', 'bad'); }
   CB.kick = 1; CB.flash = 1;
   const o = camera.position.clone(), d = camDir(V3()).normalize();
-  d.x += (Math.random() - 0.5) * 0.004; d.y += (Math.random() - 0.5) * 0.004; d.normalize();
+  if (aimAssistOn()) assistedShotDirection(o, d, w);
+  else { d.x += (Math.random() - 0.5) * 0.004; d.y += (Math.random() - 0.5) * 0.004; d.normalize(); }
   let best = w.range, hit = null;
   for (const a of CB.aliens) { if (a.dead) continue; const t = raySphere(o, d, a.x, a.y, a.z, a.r); if (t !== null && t < best) { best = t; hit = a; } }
   if (RAID.ship && !RAID.ship.dead) { const s = RAID.ship, t = raySphere(o, d, s.x, s.y, s.z, 21); if (t !== null && t < best) { best = t; hit = s; } }
@@ -2812,7 +2823,7 @@ function combatUpdate(dt, menuOpen) {
 }
 /* ================= SAVE GAME ================= */
 const SAVE_KEY = 'karman-save-v2';
-function freshSave() { return { v: 2, savedAt: 0, profile: { weapons: ['hands'], wpn: 'hands', shards: 0, tech: 0, parts: {}, powers: {}, energy: 60, hp: 100 }, colonies: {}, resume: null, settings: { gfx: COARSE ? 'medium' : 'high', raids: true, assist: true } }; }
+function freshSave() { return { v: 2, savedAt: 0, profile: { weapons: ['hands'], wpn: 'hands', shards: 0, tech: 0, parts: {}, powers: {}, energy: 60, hp: 100 }, colonies: {}, resume: null, settings: { gfx: COARSE ? 'medium' : 'high', raids: true, assist: true, aimAssist: true } }; }
 function normalizeSave(s) {
   const f = freshSave();
   s.profile = Object.assign(f.profile, s.profile || {}); s.settings = Object.assign(f.settings, s.settings || {});
@@ -3567,13 +3578,20 @@ const panelObserver = new MutationObserver(records => {
   }
 });
 for (const panel of modalPanels) panelObserver.observe(panel, { attributes: true, attributeFilter: ['hidden'] });
-document.querySelectorAll('.menu-btn').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); $('menu').hidden = !$('menu').hidden; syncMute(); syncGfxBtn(); syncRaidBtn(); if (!$('menu').hidden) { try { document.exitPointerLock(); } catch (_) {} } }));
+document.querySelectorAll('.menu-btn').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); $('menu').hidden = !$('menu').hidden; syncMute(); syncGfxBtn(); syncRaidBtn(); syncAimAssistBtn(); if (!$('menu').hidden) { try { document.exitPointerLock(); } catch (_) {} } }));
 document.addEventListener('pointerdown', e => { if (!$('menu').hidden && !$('menu').contains(e.target) && !e.target.classList.contains('menu-btn')) closeMenu(); });
 $('mSound').addEventListener('click', () => { toggleMute(); });
 $('mSave').addEventListener('click', () => { closeMenu(); writeSave(false); });
 $('mCode').addEventListener('click', () => { closeMenu(); writeSave(true); openSavePanel('export'); });
 $('mLoad').addEventListener('click', () => { closeMenu(); openSavePanel('import'); });
 $('mGfx').addEventListener('click', () => { const L = ['high', 'medium', 'low']; setGfx(L[(L.indexOf(GFX.level) + 1) % 3]); writeSave(true); });
+function syncAimAssistBtn() { setText($('mAimAssist'), `Aim assist: ${aimAssistOn() ? 'On' : 'Off'}`); $('mAimAssist').setAttribute('aria-pressed', String(aimAssistOn())); }
+$('mAimAssist').addEventListener('click', () => {
+  SAVE.settings.aimAssist = !aimAssistOn();
+  if (MP.active && MP.solo) { MP.solo.settings.aimAssist = SAVE.settings.aimAssist; try { localStorage.setItem(SAVE_KEY, JSON.stringify(MP.solo)); } catch (_) {} }
+  else writeSave(true);
+  syncAimAssistBtn();
+});
 $('mRaids').addEventListener('click', () => { if (MP.active) return; SAVE.settings.raids = !raidsOn(); if (!raidsOn()) endRaid(false, true); syncRaidBtn(); writeSave(true); toast(raidsOn() ? 'Alien raids are on.' : 'Alien raids are off. Build in peace.'); });
 function syncRaidBtn() { setText($('mRaids'), `Alien raids: ${raidsOn() ? 'On' : 'Off'}`); }
 $('mRestart').addEventListener('click', () => { closeMenu(); if (GAME.mode === 'launch') enterLaunch(); else if (GAME.mode === 'descent') transitionTo(enterDescent); });
@@ -3878,7 +3896,7 @@ function mpRetry() {
   MP.retry = setTimeout(() => { if (MP.active) mpJoin(MP.room, true); }, Math.min(15000, 1000 * Math.pow(1.5, MP.retryCount++)));
 }
 function mpEnter(world) {
-  MP.solo = SAVE; SAVE = freshSave(); MP.active = true; MP.ready = false; MP.world = world;
+  MP.solo = SAVE; SAVE = freshSave(); SAVE.settings.aimAssist = MP.solo.settings.aimAssist !== false; MP.active = true; MP.ready = false; MP.world = world;
   document.body.classList.add('crew-playing');
   document.querySelectorAll('[data-solo-only]').forEach(el => { el.hidden = true; });
   MP.hint = $('lockHint').querySelector('span').textContent;
@@ -3958,7 +3976,7 @@ function mpApply(world) {
 function mpMove(dt, forward, right, run, menuOpen) {
   const now = performance.now(), elapsed = MP.moveAt ? Math.min(.25, (now - MP.moveAt) / 1000) : dt; MP.moveAt = now;
   if (!MP.connected || MP.paused || !MP.pred) { PL.vx = PL.vz = 0; return; }
-  const controls = { forward: menuOpen ? 0 : clamp(forward, -1, 1), right: menuOpen ? 0 : clamp(right, -1, 1), yaw: PL.yaw, pitch: clamp(PL.pitch, -1.5, 1.5), run, jump: !menuOpen && !!(keys.Space || touch.jump), fire: !menuOpen && !SU.build && !!(CB.firing || MP.shot), weapon: VM.cur || 'hands' };
+  const controls = { forward: menuOpen ? 0 : clamp(forward, -1, 1), right: menuOpen ? 0 : clamp(right, -1, 1), yaw: PL.yaw, pitch: clamp(PL.pitch, -1.5, 1.5), run, jump: !menuOpen && !!(keys.Space || touch.jump), fire: !menuOpen && !SU.build && !!(CB.firing || MP.shot), weapon: VM.cur || 'hands', aimAssist: aimAssistOn() };
   MP.accumulator = Math.min(.3, MP.accumulator + elapsed);
   while (MP.accumulator >= KarmanSim.STEP) {
     MP.accumulator -= KarmanSim.STEP;

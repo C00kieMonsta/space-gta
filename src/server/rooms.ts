@@ -40,6 +40,7 @@ export const MessageSchema = z.discriminatedUnion("type", [
       run: z.boolean(),
       jump: z.boolean(),
       fire: z.boolean(),
+      aimAssist: z.boolean().optional(),
       weapon: z.enum(["hands", "pistol", "rifle", "lance"])
     })
     .strict(),
