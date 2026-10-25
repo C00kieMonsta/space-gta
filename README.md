@@ -42,6 +42,16 @@ server is stopped to reset local rooms.
   materials, deposits, production, and alien raids. Weapons and shards belong to
   each astronaut. Launches and powers remain solo features.
 
+Flight assist is on by default. Start the engine, then let autopilot handle the
+launch. Autoland handles descent. You can take over with the flight controls or
+turn assist off in the hangar. **Practice landing** skips launch and transfer;
+colony progress from practice is saved too.
+
+The first launch, landing, and surface visit each show a short field guide.
+Solo play pauses while the guide is open. Reopen it with **H** or **Guide**.
+The surface HUD shows the next colony objective. **Goals** opens the full
+checklist, and **More** expands colony resources on small screens.
+
 | Control       | Action                                |
 | ------------- | ------------------------------------- |
 | WASD / arrows | Walk or steer                         |
@@ -49,6 +59,7 @@ server is stopped to reset local rooms.
 | Shift / Space | Sprint / jump                         |
 | Click / E     | Shoot / use                           |
 | B / C         | Build / workshop                      |
+| H / G         | Field guide / colony goals            |
 | 1-4 / Escape  | Select weapon / release the mouse     |
 
 Touch controls appear on mobile devices, including a sprint toggle. Walking speed

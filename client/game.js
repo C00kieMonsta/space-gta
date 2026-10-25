@@ -215,7 +215,7 @@ function lpDebrisStep(d, dt) {
 
 /* ---------- powered landing on the Moon or Mars ---------- */
 function ldNew(B) {
-  return { x: -440, y: 2300, z: 90, vx: 17, vy: -46, vz: -3, tx: 0, tz: 0, cx: 0, cz: 0, thr: 0, fuel: B.lander.fuel,
+  return { x: -440, y: 2300, z: 90, vx: 17, vy: -46, vz: -3, tx: 0, tz: 0, cx: 0, cz: 0, thr: 0, thrEff: 0, fuel: B.lander.fuel,
     landed: false, crashed: false, auto: false, t: 0, alt: 2300, impact: 0 };
 }
 // inp: {tx, tz: tilt command -1..1 in world x/z, thr: 0..1}
@@ -602,6 +602,14 @@ function bodyTexture(color, name, foam) {
   x.fillStyle = '#' + col.getHexString(); x.fillRect(0, 0, 512, 1024);
   if (foam) { for (let i = 0; i < 1024; i += 3) { x.fillStyle = `rgba(${Math.random() < 0.5 ? '0,0,0' : '255,255,255'},${Math.random() * 0.05})`; x.fillRect(0, i, 512, 3); } }
   x.fillStyle = 'rgba(0,0,0,.05)'; for (let i = 0; i < 1024; i += 128) x.fillRect(0, i, 512, 2);
+  // Panel seams, fasteners and small service markings remain crisp at close range.
+  const r = mulberry(31);
+  for (let y = 64; y < 1024; y += 128) {
+    x.fillStyle = 'rgba(15,25,32,.18)'; x.fillRect(0, y, 512, 1);
+    for (let px = 12; px < 512; px += 32) { x.fillStyle = 'rgba(15,25,32,.32)'; x.fillRect(px, y + 4, 2, 2); x.fillStyle = 'rgba(255,255,255,.3)'; x.fillRect(px, y + 3, 2, 1); }
+  }
+  x.fillStyle = 'rgba(18,28,36,.4)'; x.font = '10px monospace';
+  for (const y of [180, 780]) { x.fillText('SERVICE / 04', 38, y); x.fillRect(38, y + 8, 32, 2); for (let i = 0; i < 12; i++) x.fillRect(38 + i * 3, y + 14, 1 + r(), 9); }
   if (name) {
     x.font = '800 92px "Saira Condensed", "Arial Narrow", sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
     x.fillStyle = foam ? 'rgba(20,22,26,.85)' : 'rgba(24,27,33,.88)';
@@ -897,6 +905,7 @@ function enterLaunch() {
   $('lookHint').style.opacity = 1;
   hideBanner();
   showMode('launch');
+  LS.S.auto = !!SAVE.settings.assist; syncAuto();
 }
 const logList = [];
 function clockStr() {
@@ -1455,12 +1464,23 @@ function buildSurface(B) {
     if (s > 0.9 && rr < 450) SF.colliders.push({ x, z, r: s * 0.9, kind: 'rock' });
   }
   surfScene.add(rocks);
+  // Fine regolith and scree add nearby scale with one instanced draw call.
+  const pebbleCount = COARSE ? 400 : 1000, gravelRandom = mulberry(moon ? 43 : 47);
+  const gravel = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), std(moon ? 0x918d85 : B.id === 'proxima' ? 0x654b67 : 0xa36d4d, .98, 0), pebbleCount);
+  const pebbleColor = new THREE.Color();
+  for (let i = 0; i < pebbleCount; i++) {
+    const angle = gravelRandom() * Math.PI * 2, radius = 7 + Math.sqrt(gravelRandom()) * 135, x = Math.cos(angle) * radius, z = Math.sin(angle) * radius, size = .025 + gravelRandom() * .11;
+    p.set(x, groundAt(x, z) + size * .2, z); sc.set(size, size * .45, size * .8); e.set(0, gravelRandom() * Math.PI * 2, 0); qq.setFromEuler(e); m4.compose(p, qq, sc); gravel.setMatrixAt(i, m4);
+    gravel.setColorAt(i, pebbleColor.setScalar(.65 + gravelRandom() * .5));
+  }
+  gravel.receiveShadow = true; surfScene.add(gravel);
   // lights
   const prox = B.id === 'proxima';
   const sunDir = moon ? V3(0.6, 0.36, 0.45).normalize() : prox ? V3(0.72, 0.22, 0.42).normalize() : V3(0.45, 0.7, 0.35).normalize();
   const sl = new THREE.DirectionalLight(moon ? 0xffffff : prox ? 0xff9a6a : 0xffe6cc, moon ? 2.3 : prox ? 1.9 : 2.0); sl.position.copy(sunDir).multiplyScalar(100);
   sl.castShadow = true; setupShadow(sl, 45, 1, 600); SF.sun = sl;
   surfScene.add(sl, sl.target);
+  const fill = new THREE.DirectionalLight(moon ? 0x9ab9eb : 0xd8a0b6, moon ? .18 : .12); fill.position.copy(sunDir).multiplyScalar(-100); fill.position.y = 45; surfScene.add(fill);
   surfScene.add(new THREE.HemisphereLight(moon ? 0x4a505c : prox ? 0x9a4a5a : 0xe6b48a, moon ? 0x45423c : prox ? 0x2a1a3a : 0x6a3a22, moon ? 0.25 : prox ? 0.7 : 0.5));
   SF.sunDir = sunDir;
   surfScene.fog = moon ? null : prox ? new THREE.Fog(0x4e2232, 160, 2300) : new THREE.Fog(0xcda07a, 250, 2700);
@@ -1469,6 +1489,10 @@ function buildSurface(B) {
   const ring = mesh(new THREE.RingGeometry(9.6, 10, 64), new THREE.MeshBasicMaterial({ color: 0xffb547, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false }), 0, 0.08, 0); ring.rotation.x = -Math.PI / 2;
   const beam = mesh(new THREE.CylinderGeometry(0.8, 0.8, 600, 16, 1, true), new THREE.MeshBasicMaterial({ color: 0xffb547, transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }), 0, 300, 0);
   surfScene.add(ring, beam); SF.ring = ring; SF.beam = beam;
+  const beaconPosts = new THREE.InstancedMesh(new THREE.CylinderGeometry(.07, .1, .9, 6), std(0x465260, .7, .4), 8);
+  const beaconLights = new THREE.InstancedMesh(new THREE.CylinderGeometry(.09, .09, .15, 8), std(0xffca7a, .4, .1, { emissive: 0xffa53d, emissiveIntensity: 1.6 }), 8);
+  for (let i = 0; i < 8; i++) { const angle = i / 8 * Math.PI * 2, x = Math.cos(angle) * 12, z = Math.sin(angle) * 12, y = groundAt(x, z); m4.makeTranslation(x, y + .45, z); beaconPosts.setMatrixAt(i, m4); m4.makeTranslation(x, y + .95, z); beaconLights.setMatrixAt(i, m4); }
+  beaconPosts.castShadow = true; surfScene.add(beaconPosts, beaconLights);
   // resource deposits
   SF.nodes = [];
   for (let i = 0; i < 26; i++) {
@@ -1502,7 +1526,7 @@ function enterDescent() {
     DS.lander = buildLander(B.id); surfScene.add(DS.lander); shadowAll(DS.lander, true, true);
     DS.plume = makePlume(DS.lander.userData.nozzle, true); DS.plume.position.y = DS.lander.userData.bellY; DS.lander.add(DS.plume);
     surfScene.add(DS.dust.pts); DS.dust.list.length = 0;
-    const L = ldNew(B); L.y += groundAt(L.x, L.z); DS.L = L; DS.done = false;
+    const L = ldNew(B); L.auto = !!SAVE.settings.assist; L.y += groundAt(L.x, L.z); DS.L = L; DS.done = false;
     Object.assign(DS.oc, { yaw: Math.atan2(L.x, L.z), pitch: 0.22, dist: 34, tYaw: null, tPitch: null, tDist: null });
     activeOC = DS.oc;
     SF.beam.visible = true; SF.ring.visible = true;
@@ -1586,7 +1610,7 @@ function renderDescent(dt) {
   DS.oc.target.set(L.x, L.y + 3, L.z);
   ocApply(DS.oc, dt, groundAt(camera.position.x, camera.position.z) + 1 - (L.y + 3) + DS.oc.target.y);
   SF.beam.material.opacity = 0.07 + 0.04 * Math.sin(GAME.t * 3) * (RM ? 0 : 1);
-  sunFollow(L.x, L.y, L.z); GFX.bloomStr = 0.5;
+  sunFollow(L.x, L.y, L.z); GFX.bloomStr = 0.32; renderer.toneMappingExposure = .98;
   writeDust(DS.dust, B);
   drawFrame(surfScene);
   // hud
@@ -1654,7 +1678,7 @@ function colonyFlag() {
   flagTex = new THREE.CanvasTexture(c); flagTex.encoding = THREE.sRGBEncoding; return flagTex;
 }
 const MM = {
-  hull: std(0xc6c3bc, 0.55, 0.1, { envMapIntensity: 0.6 }), hullDark: std(0x8d9098, 0.6, 0.4), window: std(0xffd59a, 0.3, 0, { emissive: 0xffb050, emissiveIntensity: 1.3 }),
+  hull: std(0xc6c3bc, 0.55, 0.1, { envMapIntensity: 0.6, bumpMap: detailTexture(), bumpScale: .004 }), hullDark: std(0x8d9098, 0.6, 0.4), window: std(0xffd59a, 0.3, 0, { emissive: 0xffb050, emissiveIntensity: 1.0 }),
   glass: std(0xbfe8ff, 0.05, 0.2, { transparent: true, opacity: 0.32, depthWrite: false }), plant: std(0x56c26a, 0.7, 0, { emissive: 0x1d6a2a, emissiveIntensity: 0.6 }),
   tank: std(0xd8dde4, 0.35, 0.5), blue: std(0x4fa6d8, 0.4, 0.3), pipe: std(0x6d727a, 0.4, 0.8), amber: std(0xffb547, 0.5, 0.2)
 };
@@ -1770,6 +1794,7 @@ function enterSurface() {
   set('cName', B.base);
   buildBarUI();
   renderGoals(true);
+  colonyTick(0); SU.hudT = 0;
   showMode('surface');
   $('lockHint').hidden = COARSE;
   if (!MP.active) toast(B.id === 'moon' ? 'You are standing on the Moon. Plant your flag first.' : 'You are standing on Mars. Plant your flag first.', 'good');
@@ -1783,6 +1808,7 @@ function rebuildColliders() {
 
 /* ---------- pointer & look ---------- */
 document.addEventListener('pointerlockchange', () => { PL.locked = document.pointerLockElement === cv; if (GAME.mode === 'surface') $('lockHint').hidden = PL.locked || COARSE || !$('landerMenu').hidden; });
+$('exploreBtn').addEventListener('click', () => { try { const lock = cv.requestPointerLock(); if (lock && lock.catch) lock.catch(() => toast('Drag the view to look around. WASD moves your astronaut.')); } catch (_) { toast('Drag the view to look around. WASD moves your astronaut.'); } });
 document.addEventListener('mousemove', e => { if (GAME.mode === 'surface' && PL.locked) { PL.yaw -= e.movementX * 0.0022; PL.pitch = clamp(PL.pitch - e.movementY * 0.0022, -1.45, 1.45); } });
 function surfacePointerDown(e) {
   if (!$('landerMenu').hidden) return;
@@ -1904,6 +1930,7 @@ function refreshBuildBar() {
 }
 function setBuild(on) {
   SU.build = on; $('buildBar').hidden = !on; $('buildActs').hidden = !on;
+  $('buildBtn').setAttribute('aria-pressed', String(on)); $('surfaceActions').hidden = on;
   if (!on) { if (SU.ghost) surfScene.remove(SU.ghost); SU.ghost = null; SU.sel = null; }
   else if (!SU.sel) selectBuild(CO.mods.some(m => m.id === 'flag') ? 'solar' : 'flag');
   refreshBuildBar();
@@ -1949,7 +1976,10 @@ $('tUse').addEventListener('click', () => surfaceAction());
 const jumpBtn = $('tJump');
 jumpBtn.addEventListener('pointerdown', e => { touch.jump = 1; e.preventDefault(); });
 for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) jumpBtn.addEventListener(ev, () => { touch.jump = 0; });
-$('objBtn').addEventListener('click', () => { const o = $('objList'); const open = !o.classList.contains('open'); o.classList.toggle('open', open); $('objBtn').setAttribute('aria-pressed', String(open)); });
+$('objBtn').addEventListener('click', () => { const o = $('objList'), open = o.hidden; o.hidden = !open; o.classList.toggle('open', open); $('objBtn').setAttribute('aria-pressed', String(open)); $('objBtn').setAttribute('aria-expanded', String(open)); });
+$('buildBtn').addEventListener('click', () => setBuild(!SU.build));
+$('resourceBtn').addEventListener('click', () => { const expanded = $('resourceBtn').getAttribute('aria-expanded') !== 'true'; $('resourceBtn').setAttribute('aria-expanded', String(expanded)); $('resourceGrid').classList.toggle('expanded', expanded); setText($('resourceBtn'), expanded ? 'Less −' : 'More +'); });
+$('telemetryBtn').addEventListener('click', () => { const expanded = $('flightDetails').hidden; $('flightDetails').hidden = !expanded; $('telemetryBtn').setAttribute('aria-expanded', String(expanded)); setText($('telemetryBtn'), expanded ? 'Details −' : 'Details +'); });
 
 /* ---------- goals ---------- */
 const GOALS = [
@@ -1969,6 +1999,9 @@ function checkGoals() {
 }
 function renderGoals() {
   const ol = $('objList'); ol.textContent = ''; let next = false;
+  const completed = GOALS.filter(([id]) => CO.done[id]).length;
+  setText($('goalCount'), `${completed} / ${GOALS.length}`); $('goalProgress').value = completed;
+  setText($('goalNext'), GOALS.find(([id]) => !CO.done[id])?.[1] || 'Your colony is thriving.');
   for (const [id, text] of GOALS) {
     const li = document.createElement('li'); li.textContent = text;
     if (CO.done[id]) li.className = 'done'; else if (!next) { li.className = 'next'; next = true; }
@@ -2071,7 +2104,7 @@ function colonyTick(dt) {
 /* ---------- per-frame ---------- */
 function updateSurface(dt) {
   const B = DS.B, moon = B.id === 'moon';
-  const menuOpen = !$('landerMenu').hidden || !$('banner').hidden || !$('craftPanel').hidden || !$('savePanel').hidden || (MP.active && (!$('menu').hidden || !$('crewPanel').hidden || document.hidden || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)));
+  const menuOpen = guideDialog.open || !$('menu').hidden || !$('crewPanel').hidden || !$('landerMenu').hidden || !$('banner').hidden || !$('craftPanel').hidden || !$('savePanel').hidden || (MP.active && (document.hidden || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)));
   let iF = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0) + touch.sy;
   let iR = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + touch.sx;
   if (menuOpen) iF = iR = 0;
@@ -2140,7 +2173,7 @@ function renderSurface(dt) {
   vmScene.environment = surfScene.environment;
   drawFrame(surfScene, true);
   combatOverlays();
-  SU.hudT -= dt; if (SU.hudT > 0) return; SU.hudT = 0.12;
+  SU.hudT -= dt; if (SU.hudT > 0 && dt !== 0) return; SU.hudT = 0.12;
   const B = DS.B, R = SU.rates, rs = v => (v >= 0 ? '+' : '') + (Math.abs(v) < 10 ? v.toFixed(1) : Math.round(v));
   set('cSol', `${B.day} ${Math.floor(CO.sol) + 1}`);
   set('cPop', `${CO.pop} / ${R.cap || 0}`);
@@ -2779,7 +2812,7 @@ function combatUpdate(dt, menuOpen) {
 }
 /* ================= SAVE GAME ================= */
 const SAVE_KEY = 'karman-save-v2';
-function freshSave() { return { v: 2, savedAt: 0, profile: { weapons: ['hands'], wpn: 'hands', shards: 0, tech: 0, parts: {}, powers: {}, energy: 60, hp: 100 }, colonies: {}, resume: null, settings: { gfx: COARSE ? 'medium' : 'high', raids: true } }; }
+function freshSave() { return { v: 2, savedAt: 0, profile: { weapons: ['hands'], wpn: 'hands', shards: 0, tech: 0, parts: {}, powers: {}, energy: 60, hp: 100 }, colonies: {}, resume: null, settings: { gfx: COARSE ? 'medium' : 'high', raids: true, assist: true } }; }
 function normalizeSave(s) {
   const f = freshSave();
   s.profile = Object.assign(f.profile, s.profile || {}); s.settings = Object.assign(f.settings, s.settings || {});
@@ -3298,8 +3331,14 @@ const HG = { oc: makeOC({ yaw: 0.7, pitch: 0.08, dist: 120, min: 15, max: 600, m
   x.strokeStyle = 'rgba(150,180,240,.16)'; x.lineWidth = 2; for (let i = 0; i <= 512; i += 64) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, 512); x.moveTo(0, i); x.lineTo(512, i); x.stroke(); }
   const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(30, 30); t.anisotropy = 8;
   const floor = mesh(new THREE.CircleGeometry(400, 64), std(0xffffff, 0.55, 0.3, { map: t })); floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; hangarScene.add(floor);
-  const tt = mesh(new THREE.CylinderGeometry(16, 17, 1.2, 64), std(0x262b35, 0.35, 0.8), 0, 0.6, 0); tt.receiveShadow = true; hangarScene.add(tt);
+  const tt = mesh(new THREE.CylinderGeometry(16, 17, 1.2, 64), std(0x14222e, .62, .45, { bumpMap: detailTexture(), bumpScale: .015 }), 0, 0.6, 0); tt.receiveShadow = true; hangarScene.add(tt);
   const ring = mesh(new THREE.TorusGeometry(16.5, 0.18, 8, 96), new THREE.MeshBasicMaterial({ color: 0xffb547 }), 0, 1.22, 0); ring.rotation.x = Math.PI / 2; hangarScene.add(ring);
+  const platformInset = mesh(new THREE.CircleGeometry(14.8, 64), std(0x25313e, .85, .25), 0, 1.21, 0); platformInset.rotation.x = -Math.PI / 2; platformInset.receiveShadow = true; hangarScene.add(platformInset);
+  const padMarks = new THREE.InstancedMesh(new THREE.BoxGeometry(.5, .04, 1.5), new THREE.MeshBasicMaterial({ color: 0xffc778 }), 32), padMatrix = new THREE.Matrix4();
+  for (let i = 0; i < 32; i++) { const angle = i / 32 * Math.PI * 2; padMatrix.makeRotationY(angle); padMatrix.setPosition(Math.sin(angle) * 15.4, 1.25, Math.cos(angle) * 15.4); padMarks.setMatrixAt(i, padMatrix); }
+  hangarScene.add(padMarks);
+  const runwayLights = new THREE.InstancedMesh(new THREE.BoxGeometry(.4, .06, 1.2), new THREE.MeshBasicMaterial({ color: 0x83e4e2 }), 28);
+  for (let i = 0; i < 28; i++) { padMatrix.makeTranslation(i % 2 ? 28 : -28, .12, -75 + Math.floor(i / 2) * 10); runwayLights.setMatrixAt(i, padMatrix); } hangarScene.add(runwayLights);
   for (const radius of [20, 25, 65]) {
     const guide = mesh(new THREE.TorusGeometry(radius, .045, 4, 128), new THREE.MeshBasicMaterial({ color: 0x43646d }), 0, .035, 0); guide.rotation.x = -Math.PI / 2; hangarScene.add(guide);
   }
@@ -3310,7 +3349,7 @@ const HG = { oc: makeOC({ yaw: 0.7, pitch: 0.08, dist: 120, min: 15, max: 600, m
   for (const x of [-32, 32]) {
     const rail = mesh(new THREE.BoxGeometry(.16, .08, 170), new THREE.MeshBasicMaterial({ color: 0x72c3cc }), x, .08, -45); hangarScene.add(rail);
   }
-  for (const [px, pz, col, it] of [[60, 70, 0xfff1dd, 2.1], [-80, 30, 0x9cc7ff, 1.2], [10, -90, 0xffc890, 1.0]]) {
+  for (const [px, pz, col, it] of [[60, 70, 0xfff1dd, 2.1], [-80, 30, 0x9cc7ff, 1.4], [10, -90, 0x83e4e2, 1.6]]) {
     const s = new THREE.SpotLight(col, it, 0, 0.42, 0.6, 1); s.position.set(px, 140, pz); s.target.position.set(0, 30, 0); hangarScene.add(s, s.target);
     if (it > 2) { s.castShadow = true; s.shadow.mapSize.set(2048, 2048); s.shadow.camera.near = 40; s.shadow.camera.far = 400; s.shadow.bias = -0.0003; SHADOW_LIGHTS.push(s); HG.spot = s; }
   }
@@ -3341,6 +3380,8 @@ function hangarSelect(id, keepCam) {
 function renderHangarUI() {
   const R = GAME.rocket, list = $('rkList');
   setText($('shipName'), R.name); setText($('shipClass'), R.cls);
+  setText($('shipIndex'), `${String(ROCKETS.indexOf(R) + 1).padStart(2, '0')} / 05`);
+  $('assistBtn').setAttribute('aria-pressed', String(!!SAVE.settings.assist));
   if (!list.children.length) {
     for (const r of ROCKETS) {
       const b = document.createElement('button'); b.type = 'button'; b.className = 'rk' + (r.single ? ' star' : ''); b.setAttribute('role', 'radio'); b.dataset.id = r.id;
@@ -3354,15 +3395,16 @@ function renderHangarUI() {
       b.addEventListener('click', () => { GAME.dest = id; renderHangarUI(); }); dl.append(b);
     }
   }
-  for (const b of list.children) { b.setAttribute('aria-checked', String(b.dataset.id === R.id)); b.classList.toggle('locked', b.dataset.id === 'seraph' && !starshipReady()); }
+  for (const b of list.children) { const selected = b.dataset.id === R.id; b.setAttribute('aria-checked', String(selected)); b.tabIndex = selected ? 0 : -1; b.classList.toggle('locked', b.dataset.id === 'seraph' && !starshipReady()); b.setAttribute('aria-label', `${b.querySelector('b').textContent}, ${b.querySelector('span').textContent}${b.classList.contains('locked') ? ', locked. Requires a plasma reactor and light-speed drive.' : ''}`); }
   const locked = R.single && !starshipReady();
+  if (HG.selected !== R.id) { HG.selected = R.id; requestAnimationFrame(() => { const choice = list.querySelector('[aria-checked="true"]'); if (choice) list.scrollLeft += choice.getBoundingClientRect().left - list.getBoundingClientRect().left - (list.clientWidth - choice.clientWidth) / 2; }); }
   setText($('rkBlurb'), R.blurb);
   const st = $('rkStats'); st.textContent = '';
   const reach = R.dest.map(d => ({ orbit: 'Orbit', moon: 'Moon', mars: 'Mars', proxima: 'Proxima b' }[d])).join(' · ');
   for (const [k, v] of [['Height', `${(R.totalLen + R.s1.bell).toFixed(0)} m`], ['Liftoff mass', `${Math.round(R.liftMass / 1000).toLocaleString('en-GB')} t`], [R.single ? 'Top speed' : 'Thrust', R.single ? '1.00 c' : `${(R.s1.Fsl / 1e6).toFixed(1)} MN`], ['Reaches', reach]]) {
     const d = document.createElement('div'), dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = k; dd.textContent = v; d.append(dt, dd); st.append(d);
   }
-  for (const b of $('destList').children) { const ok = R.dest.includes(b.dataset.id); b.disabled = !ok; b.setAttribute('aria-checked', String(b.dataset.id === GAME.dest)); }
+  for (const b of $('destList').children) { const ok = R.dest.includes(b.dataset.id), selected = b.dataset.id === GAME.dest; b.disabled = !ok; b.setAttribute('aria-checked', String(selected)); b.tabIndex = selected ? 0 : -1; b.title = ok ? '' : `Choose ${b.dataset.id === 'proxima' ? 'an unlocked Seraph' : 'Condor'} to reach this destination.`; }
   const d = GAME.dest; let note = '';
   if (locked) note = 'Locked. On the Moon or Mars, salvage alien wrecks after raids, then build a plasma reactor and a light-speed drive in the workshop.';
   else if (d === 'proxima') note = 'Jump 4.24 light-years to the nearest star, land on Proxima b and build an outpost under a red sun.' + (colonySummary('proxima') ? ` Your outpost: ${colonySummary('proxima').pop} colonists.` : '');
@@ -3373,9 +3415,11 @@ function renderHangarUI() {
     if (s) note += ` Your ${B.base.toLowerCase()}: ${s.pop} colonist${s.pop === 1 ? '' : 's'}, ${s.mods.length} building${s.mods.length === 1 ? '' : 's'}.`;
   }
   setText($('destNote'), note);
+  const plan = $('flightPlan'); plan.textContent = '';
+  for (const label of d === 'orbit' ? ['Launch', 'Earth orbit'] : ['Launch', d === 'proxima' ? 'Star jump' : 'Transfer', 'Land', 'Build a base']) { const step = document.createElement('li'); step.textContent = label; plan.append(step); }
   setText($('launchBtn'), locked ? 'Locked' : d === 'orbit' ? 'Launch to orbit' : d === 'moon' ? 'Launch for the Moon' : d === 'mars' ? 'Launch for Mars' : 'Launch for Proxima b');
   $('launchBtn').disabled = locked; $('skipBtn').disabled = locked;
-  $('skipBtn').hidden = d === 'orbit';
+  $('quickStart').hidden = d === 'orbit' || locked;
   const r = SAVE.resume, cb = $('contBtn');
   cb.hidden = !(r && BODIES[r.body]);
   if (!cb.hidden) { const c = SAVE.colonies[r.body], B = BODIES[r.body]; setText($('contLabel'), `Continue: ${B.base}`); setText($('contSub'), `${B.day} ${Math.floor((c && c.sol) || 0) + 1} · ${(c && c.pop) || 0} colonists · ${SAVE.profile.shards} shards${SAVE.savedAt ? ' · saved ' + new Date(SAVE.savedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}`); }
@@ -3388,14 +3432,22 @@ $('launchBtn').addEventListener('click', () => {
 $('skipBtn').addEventListener('click', () => { audioInit(); transitionTo(() => enterDescent()); });
 $('contBtn').addEventListener('click', () => { audioInit(); continueGame(); });
 $('codeBtn').addEventListener('click', () => openSavePanel('import'));
+$('assistBtn').addEventListener('click', () => { SAVE.settings.assist = !SAVE.settings.assist; writeSave(true); renderHangarUI(); });
+document.querySelectorAll('[role="radiogroup"]').forEach(group => group.addEventListener('keydown', e => {
+  if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) return;
+  e.preventDefault(); e.stopPropagation();
+  const choices = [...group.querySelectorAll('[role="radio"]:not(:disabled)')], current = choices.indexOf(document.activeElement);
+  const index = e.key === 'Home' ? 0 : e.key === 'End' ? choices.length - 1 : (current + (e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 1) + choices.length) % choices.length;
+  choices[index].click(); choices[index].focus(); choices[index].scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}));
 function updateHangar(dt) {
   HG.idle += dt;
   if (ptrs.size === 0 && HG.idle > 1.5 && !RM) HG.oc.yaw += dt * 0.12;
   if (ptrs.size) HG.idle = 0;
   const narrow = VW < 720;
-  camera.setViewOffset(VW, VH, narrow ? 0 : -Math.min(200, VW * 0.18), narrow ? VH * 0.3 : 0, VW, VH);
+  camera.setViewOffset(VW, VH, narrow ? 0 : -Math.min(200, VW * 0.18), narrow ? VH * 0.275 : 0, VW, VH);
   const baseDistance = (GAME.rocket.totalLen + GAME.rocket.s1.bell) * 1.42 + 22;
-  HG.oc.min = narrow ? baseDistance * 1.8 : 15;
+  HG.oc.min = narrow ? baseDistance * 2.5 : 15;
   if (HG.oc.dist < HG.oc.min) { HG.oc.dist = HG.oc.min; if (HG.oc.tDist !== null) HG.oc.tDist = Math.max(HG.oc.tDist, HG.oc.min); }
   ocApply(HG.oc, dt, 0.5);
   if (HG.spot) HG.spot.castShadow = shadowsOn();
@@ -3404,10 +3456,38 @@ function updateHangar(dt) {
 }
 
 /* ================= modes, overlays ================= */
+const GUIDE = {
+  hangar: { title: 'Make your first giant leap.', intro: 'Choose Heron and the Moon for your first colony. The flight plan takes you from Earth to a base of your own.', controls: [['Choose a ship', 'Use the spacecraft cards. Arrow keys work too.'], ['Pick your destination', 'Each ship can reach different worlds.'], ['Launch or practice', 'Fly the whole expedition, or go straight to descent.'], ['Bring your crew', 'Play with friends creates a shared Moon colony.']], touch: null, tip: 'Flight assist handles launch and landing. Switch it off in the hangar for a manual flight.' },
+  launch: { title: 'Next stop: the stars.', intro: 'Reach Earth orbit before heading to your destination. The main amber button shows your next flight action.', controls: [['Space', 'Start the engine, release clamps, then separate stages.'], ['A / D', 'Tilt the rocket west or east.'], ['T', 'Toggle autopilot. It flies to a stable orbit.'], ['V', 'Change camera. Drag the view to look around.']], touch: [['Amber button', 'Start the engine, release clamps, then separate stages.'], ['Tilt buttons', 'Steer west or east.'], ['Autopilot', 'Let the flight computer fly to orbit.'], ['Throttle slider', 'Control engine power.']], tip: 'With autopilot on, watch the flight and follow the transfer prompt once you reach orbit.' },
+  transfer: { title: 'Enjoy the long way round.', intro: 'Your transfer is underway. The flight computer takes care of the journey between worlds.', controls: [['Drag', 'Orbit the camera around your spacecraft.'], ['V', 'Switch between ship and solar-system views.'], ['Faster', 'Speed up the journey.'], ['Skip to arrival', 'Continue straight to the descent.']], touch: null, tip: 'Distance, speed and arrival time are in the journey panel. Your next task is to land.' },
+  descent: { title: 'A soft landing starts here.', intro: 'Aim for the amber beacon. Touch down level, with little sideways drift and a sink rate below 3.5 m/s.', controls: [['T', 'Toggle autoland. Recommended for your first landing.'], ['Hold Space', 'Fire the engine to slow your descent.'], ['WASD', 'Tilt and steer toward the landing zone.'], ['R / F', 'Increase or decrease the throttle.']], touch: [['Autoland', 'Let the flight computer handle the landing.'], ['Hold to burn', 'Fire the engine to slow your descent.'], ['Left joystick', 'Tilt and steer toward the landing zone.'], ['Throttle slider', 'Set steady engine power.']], tip: 'Steering or holding the burn control takes over from autoland. Watch height, sink rate and fuel.' },
+  surface: { title: 'Build a place to call home.', intro: 'Plant a flag, add solar power, then build a habitat. The next colony goal stays in your HUD.', controls: [['WASD / mouse', 'Move and look. Shift sprints. Space jumps.'], ['E', 'Collect glowing deposits or board the lander.'], ['B / C', 'Open building or the workshop.'], ['Esc / H', 'Release the mouse or open this guide.']], touch: [['Left joystick', 'Move. Drag the view with your other thumb to look.'], ['Use', 'Collect a nearby glowing deposit or board the lander.'], ['Build / Workshop', 'Place buildings or craft equipment.'], ['Sprint / Jump', 'Travel faster or jump across the terrain.']], tip: 'The lander and habitats refill your air. Orange deposits give materials. Blue deposits give water.' }
+};
+const guideDialog = $('guideDialog');
+let guideMode = 'hangar';
+function openGuide() {
+  guideMode = GAME.mode; const info = GUIDE[guideMode]; if (!info || guideDialog.open) return;
+  closeMenu(); try { document.exitPointerLock(); } catch (_) {}
+  for (const key in keys) keys[key] = false;
+  touch.sx = touch.sy = touch.burn = touch.jump = 0; CB.firing = false;
+  setText($('guidePhase'), `${guideMode === 'hangar' ? 'Mission preparation' : guideMode} / Field guide`);
+  setText($('guideTitle'), info.title); setText($('guideIntro'), info.intro); setText($('guideTip'), info.tip);
+  const controls = $('guideControls'); controls.textContent = '';
+  for (const [action, description] of COARSE && info.touch ? info.touch : info.controls) { const row = document.createElement('div'), dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = action; dd.textContent = description; row.append(dt, dd); controls.append(row); }
+  setText($('guidePause'), MP.active ? 'Your crew world stays live.' : 'Solo flight is paused while you read.');
+  setText($('guideClose'), guideMode === 'hangar' ? 'Choose my expedition' : 'Ready to continue');
+  guideDialog.showModal();
+}
+guideDialog.addEventListener('close', () => { if (!MP.active) { SAVE.settings.guides = Object.assign({}, SAVE.settings.guides, { [guideMode]: true }); writeSave(true); } });
+$('guideClose').addEventListener('click', () => guideDialog.close());
+$('guideDismiss').addEventListener('click', () => guideDialog.close());
+$('mHelp').addEventListener('click', openGuide);
+document.querySelectorAll('.menu-btn').forEach(button => { const help = document.createElement('button'); help.type = 'button'; help.className = 'btn help-btn'; help.textContent = 'Guide'; help.title = 'Flight guide (H)'; button.before(help); });
+document.querySelectorAll('.help-btn').forEach(button => button.addEventListener('click', openGuide));
 const UIS = { hangar: 'hangarUI', launch: 'launchUI', transfer: 'transferUI', descent: 'descentUI', surface: 'surfaceUI' };
 function showMode(m) {
   if (GAME.mode === 'surface' && m !== 'surface') { saveColony(); try { document.exitPointerLock(); } catch (_) {} }
-  GAME.mode = m; touch.run = false; $('tRun').setAttribute('aria-pressed', 'false');
+  GAME.mode = m; document.body.dataset.mode = m; touch.run = false; $('tRun').setAttribute('aria-pressed', 'false');
   for (const k in UIS) $(UIS[k]).hidden = k !== m;
   $('visor').hidden = $('cross').hidden = m !== 'surface';
   $('stick').hidden = !(COARSE && (m === 'descent' || m === 'surface'));
@@ -3426,6 +3506,8 @@ function showMode(m) {
   const restart = $('mRestart'); restart.hidden = !(m === 'launch' || m === 'descent');
   $('mRaids').hidden = m !== 'surface';
   setText(restart, m === 'launch' ? 'Restart launch' : 'Restart landing');
+  if (guideDialog.open) guideDialog.close();
+  if (['launch', 'descent', 'surface'].includes(m) && !MP.active && !SAVE.settings.guides?.[m]) openGuide();
 }
 let bannerTimer = 0;
 function showBanner(kind) {
@@ -3476,6 +3558,15 @@ function transitionTo(fn) {
 }
 // menu
 function closeMenu() { $('menu').hidden = true; }
+const modalPanels = ['crewPanel', 'craftPanel', 'savePanel', 'landerMenu'].map($), modalFocus = new WeakMap();
+function activeModalPanel() { return modalPanels.find(panel => !panel.hidden); }
+const panelObserver = new MutationObserver(records => {
+  for (const { target: panel } of records) {
+    if (!panel.hidden) { if (panel.contains(document.activeElement)) continue; modalFocus.set(panel, document.activeElement); panel.setAttribute('aria-modal', 'true'); (panel.querySelector('input, textarea, button:not(:disabled)') || panel).focus(); }
+    else { const previous = modalFocus.get(panel); if (!guideDialog.open && previous?.isConnected && previous.getClientRects().length) previous.focus(); }
+  }
+});
+for (const panel of modalPanels) panelObserver.observe(panel, { attributes: true, attributeFilter: ['hidden'] });
 document.querySelectorAll('.menu-btn').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); $('menu').hidden = !$('menu').hidden; syncMute(); syncGfxBtn(); syncRaidBtn(); if (!$('menu').hidden) { try { document.exitPointerLock(); } catch (_) {} } }));
 document.addEventListener('pointerdown', e => { if (!$('menu').hidden && !$('menu').contains(e.target) && !e.target.classList.contains('menu-btn')) closeMenu(); });
 $('mSound').addEventListener('click', () => { toggleMute(); });
@@ -3491,6 +3582,15 @@ $('mHangar').addEventListener('click', () => { closeMenu(); transitionTo(enterHa
 /* ================= input ================= */
 addEventListener('keydown', e => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (guideDialog.open) { if (e.code === 'Escape') { e.preventDefault(); guideDialog.close(); } return; }
+  const modal = activeModalPanel();
+  if (modal) {
+    if (e.code === 'Escape') { e.preventDefault(); ({ crewPanel: $('crewCancel'), craftPanel: $('craftClose'), savePanel: $('spClose'), landerMenu: $('lmStay') })[modal.id].click(); }
+    else if (e.code === 'Tab') { const focusable = [...modal.querySelectorAll('button:not(:disabled), input:not(:disabled), textarea, [tabindex="0"]')].filter(el => el.getClientRects().length), first = focusable[0], last = focusable[focusable.length - 1]; if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); } else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); } }
+    else if (modal.id === 'craftPanel' && e.code === 'KeyC' && document.activeElement.tagName !== 'INPUT') closeCraft();
+    return;
+  }
+  if (e.code === 'Escape' && !$('menu').hidden) { closeMenu(); return; }
   const focused = document.activeElement;
   if (focused && (['INPUT', 'TEXTAREA', 'SELECT'].includes(focused.tagName) || focused.isContentEditable)) return;
   const ae = document.activeElement, onBtn = ae && ae.tagName === 'BUTTON';
@@ -3499,6 +3599,7 @@ addEventListener('keydown', e => {
   keys[e.code] = true;
   if (e.repeat) return;
   const m = GAME.mode;
+  if (e.code === 'KeyH') { openGuide(); return; }
   if (e.code === 'KeyM') { toggleMute(); return; }
   if (m === 'launch') {
     const S = LS.S;
@@ -4061,6 +4162,13 @@ let lastT = performance.now(), errShown = false;
 function frame(now) {
   const dt = Math.min(0.05, Math.max(0.001, (now - lastT) / 1000)); lastT = now;
   try {
+    if (guideDialog.open && !MP.active) {
+      if (GAME.mode === 'launch') renderLaunch(0);
+      else if (GAME.mode === 'descent') renderDescent(0);
+      else if (GAME.mode === 'surface') renderSurface(0);
+      else if (GAME.mode === 'transfer') renderTransfer(0);
+      audioEngine(0, 1, 0); requestAnimationFrame(frame); return;
+    }
     switch (GAME.mode) {
       case 'hangar': updateHangar(dt); break;
       case 'launch': updateLaunch(dt); renderLaunch(dt); break;

@@ -23,19 +23,23 @@
     <p class="eyebrow">01 / Mission preparation</p>
     <h1>Your next<br><span>frontier.</span></h1>
     <p class="hangar-intro">Pick a ship. Build a world. Bring your crew.</p>
-    <div class="section-label"><span class="k">Select spacecraft</span><span class="k">01 / 05</span></div>
+    <div class="hangar-options">
+    <div class="section-label"><span class="k">Select spacecraft</span><span class="k" id="shipIndex">03 / 05</span></div>
     <div class="rk-list" id="rkList" role="radiogroup" aria-label="Rocket"></div>
     <p class="rk-blurb" id="rkBlurb"></p>
-    <dl class="rk-stats" id="rkStats"></dl>
     <span class="k">Destination</span>
     <div class="dest" id="destList" role="radiogroup" aria-label="Destination"></div>
     <p class="dest-note" id="destNote"></p>
+    <details class="ship-specs"><summary>Spacecraft specifications</summary><dl class="rk-stats" id="rkStats"></dl></details>
     <button class="cont" id="contBtn" type="button" hidden><b id="contLabel">Continue</b><span id="contSub"></span></button>
-    <div class="launch-row">
-      <button class="primary" id="launchBtn" type="button">Roll out to the pad</button>
-      <button class="btn" id="skipBtn" type="button" title="Skip launch and travel, go straight to the landing">Skip to landing</button>
     </div>
-    <button class="linkbtn" id="codeBtn" type="button">Load a save code</button>
+    <ol class="flight-plan" id="flightPlan" aria-label="Flight plan"></ol>
+    <div class="departure">
+      <button class="flight-assist" id="assistBtn" type="button" aria-pressed="true"><span><b>Flight assist</b><small>Autopilot for launch and landing. Take over any time.</small></span><span class="switch" aria-hidden="true"></span></button>
+      <button class="primary" id="launchBtn" type="button">Launch for the Moon</button>
+      <div class="quick-start" id="quickStart"><button class="linkbtn" id="skipBtn" type="button" aria-describedby="skipNote">Practice landing <span aria-hidden="true">↗</span></button><span id="skipNote">Go straight to descent. Keep what you build.</span></div>
+      <button class="linkbtn" id="codeBtn" type="button">Load a save code</button>
+    </div>
   </div>
   <aside class="ship-caption" aria-label="Selected spacecraft">
     <span class="eyebrow">Spacecraft / <span id="shipClass">Moon rocket</span></span>
@@ -60,9 +64,11 @@
     </div>
   </header>
   <section class="telemetry panel" id="telemetry" aria-label="Telemetry">
+    <div class="instrument-heading"><span class="k">Flight instruments</span><button class="linkbtn" id="telemetryBtn" type="button" aria-expanded="false" aria-controls="flightDetails">Details +</button></div>
     <div class="tm big"><span class="k">Altitude</span><span class="v" id="tAlt">0 m</span></div>
     <div class="tm big"><span class="k">Speed</span><span class="v" id="tSpd">0 m/s</span></div>
-    <div class="tm opt"><span class="k">Vertical</span><span class="v" id="tVs">0 m/s</span></div>
+    <div class="tm"><span class="k">Vertical</span><span class="v" id="tVs">0 m/s</span></div>
+    <div class="telemetry-details" id="flightDetails" hidden>
     <div class="tm opt"><span class="k">Horizontal</span><span class="v" id="tHs">0 m/s</span></div>
     <div class="sep"></div>
     <div class="tm"><span class="k">Mach</span><span class="v" id="tMach">0.00</span></div>
@@ -72,6 +78,7 @@
     <div class="tm"><span class="k">Apoapsis</span><span class="v" id="tAp">—</span></div>
     <div class="tm"><span class="k">Periapsis</span><span class="v" id="tPe">—</span></div>
     <div class="tm opt"><span class="k">Downrange</span><span class="v" id="tRange">0.0 km</span></div>
+    </div>
   </section>
   <aside class="ladder panel" aria-hidden="true">
     <span class="k">Altitude</span>
@@ -207,12 +214,12 @@
     <div class="map-legend"><span>● Lander</span><span>● Crew</span><span>◇ Deposit</span></div>
   </aside>
   <section class="colony panel" aria-label="Colony and suit status">
-    <div class="head"><h2 id="cName">Moon base</h2><span class="k mono" id="cSol">Day 1</span></div>
-    <div class="cgrid">
-      <div class="tm"><span class="k">Colonists</span><span class="v" id="cPop">0 / 0</span></div>
-      <div class="tm"><span class="k">Power</span><span class="v" id="cPower">+2</span></div>
+    <div class="head"><h2 id="cName">Moon base</h2><span class="k mono" id="cSol">Day 1</span><button class="linkbtn" id="resourceBtn" type="button" aria-expanded="false" aria-controls="resourceGrid">More +</button></div>
+    <div class="cgrid" id="resourceGrid">
       <div class="tm"><span class="k">Materials</span><span class="v" id="cMat">0</span></div>
+      <div class="tm"><span class="k">Power</span><span class="v" id="cPower">+2</span></div>
       <div class="tm"><span class="k">Water</span><span class="v" id="cWater">0</span></div>
+      <div class="tm"><span class="k">Colonists</span><span class="v" id="cPop">0 / 0</span></div>
       <div class="tm"><span class="k">Oxygen</span><span class="v" id="cO2">0</span></div>
       <div class="tm"><span class="k">Food</span><span class="v" id="cFood">0</span></div>
       <div class="tm"><span class="k">Next raid</span><span class="v" id="cRaid">—</span></div>
@@ -229,10 +236,11 @@
   <div class="sright">
     <div class="sys">
       <button class="btn" id="craftBtn" type="button">Workshop <kbd>C</kbd></button>
-      <button class="btn opt-btn" id="objBtn" type="button" aria-pressed="false">Goals</button>
+      <button class="btn" id="objBtn" type="button" aria-pressed="false" aria-expanded="false" aria-controls="objList">Goals <kbd>G</kbd></button>
       <button class="btn menu-btn" type="button">Menu</button>
     </div>
-    <ol class="objectives panel" id="objList" aria-label="Colony goals"></ol>
+    <div class="goal-summary panel"><div class="goal-heading"><span class="k">Next objective</span><span class="mono" id="goalCount">0 / 8</span></div><p id="goalNext" role="status">Plant your flag</p><progress id="goalProgress" max="8" value="0" aria-label="Colony goals completed"></progress></div>
+    <ol class="objectives panel" id="objList" aria-label="Colony goals" hidden></ol>
   </div>
   <div class="sbottom">
     <div class="wpn panel" id="wpnBox">
@@ -241,6 +249,7 @@
       <div class="wslots" id="wpnSlots"></div>
     </div>
     <div class="scenter">
+      <div class="surface-actions" id="surfaceActions"><button class="btn" id="buildBtn" type="button" aria-pressed="false">Build <kbd>B</kbd></button><span class="action-hint">Explore. Collect. Make it yours.</span></div>
       <div class="raid panel" id="raidBox" hidden><span class="k">Alien raid</span><b id="raidState">Hidden</b><span id="raidInfo"></span></div>
       <p class="prompt" id="sPrompt"></p>
       <div class="buildbar panel" id="buildBar" hidden></div>
@@ -267,7 +276,7 @@
       </div>
     </div>
   </div>
-  <p class="lock-hint panel" id="lockHint" hidden>Click to explore<br><span class="k">WASD move · Shift sprint · Space jump, hold for jetpack · Click shoot · E use · B build · C workshop · 1–4 weapons · Q F T V powers · Esc frees the mouse</span></p>
+  <div class="lock-hint panel" id="lockHint" hidden><p>One small step. Your whole world.</p><span class="k">WASD to move · Mouse to look · E to interact</span><div class="explore-actions"><button class="primary" id="exploreBtn" type="button">Click to explore</button><button class="btn help-btn" type="button">Controls <kbd>H</kbd></button></div><small>Press Esc to release the mouse. Drag to look if mouse capture is unavailable.</small></div>
 </section>
 <div class="landermenu panel" id="landerMenu" hidden role="dialog" aria-labelledby="lmTitle">
   <h2 id="lmTitle">Lander</h2>
@@ -312,6 +321,8 @@
   </div>
 </div>
 <div class="menu panel" id="menu" hidden>
+  <p class="k menu-heading">Expedition settings</p>
+  <button class="btn" id="mHelp" type="button">Flight guide <kbd>H</kbd></button>
   <button class="btn" id="mSave" type="button">Save game</button>
   <button class="btn" id="mCode" type="button">Get save code</button>
   <button class="btn" id="mLoad" type="button">Load save code</button>
@@ -322,6 +333,14 @@
   <button class="btn" id="mRestart" type="button">Restart launch</button>
   <button class="btn" id="mHangar" type="button">Back to hangar</button>
 </div>
+<dialog class="guide-dialog panel" id="guideDialog" aria-labelledby="guideTitle" aria-describedby="guideIntro">
+  <div class="guide-top"><p class="eyebrow" id="guidePhase">Your field guide</p><button class="btn icon-btn" id="guideDismiss" type="button" aria-label="Close flight guide">×</button></div>
+  <h2 id="guideTitle">Welcome, explorer.</h2>
+  <p id="guideIntro"></p>
+  <dl class="guide-controls" id="guideControls"></dl>
+  <p class="guide-tip" id="guideTip"></p>
+  <footer><span id="guidePause">Solo flight is paused while you read.</span><button class="primary" id="guideClose" type="button">Ready to explore</button></footer>
+</dialog>
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <section class="crew-panel panel" id="crewPanel" role="dialog" aria-modal="true" aria-labelledby="crewTitle" hidden>
   <p class="eyebrow">Co-op expedition / Up to 4 astronauts</p>
